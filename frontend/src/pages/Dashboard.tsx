@@ -84,6 +84,14 @@ export function Dashboard() {
   // First name extraction
   const firstName = user?.name ? user.name.split(" ")[0] : "User";
 
+  // Dynamic greeting based on current time
+  const getGreeting = (): string => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
   // Tab Filtering
   const getFilteredEmails = (): EmailJob[] => {
     let list: EmailJob[] = [];
@@ -147,7 +155,7 @@ export function Dashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-black text-text-main tracking-tight">
-                Good morning, {firstName}.
+                {getGreeting()}, {firstName}.
               </h1>
               <p className="text-xs sm:text-sm text-text-muted mt-1 font-bold">
                 Here's your email activity for today.

@@ -11,11 +11,12 @@ import {
   AlignLeft, 
   ListOrdered, 
   Upload,
-  ArrowLeft
+  ArrowLeft,
+  Edit3
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { DateTimePicker } from "../ui/DateTimePicker";
-import { parseEmailFile } from "../../utils/csvParser";
+import { parseEmailFile, extractEmailsFromText } from "../../utils/csvParser";
 import {
   datetimeLocalToISO,
   toDatetimeLocalValue,
@@ -52,6 +53,8 @@ export function ComposeEmail({
   const [hourlyLimit, setHourlyLimit] = useState("50");
   const [emails, setEmails] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [recipientMode, setRecipientMode] = useState<"upload" | "manual">("upload");
+  const [manualEmails, setManualEmails] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
@@ -86,10 +89,44 @@ export function ComposeEmail({
     setHourlyLimit("50");
     setEmails([]);
     setFileName(null);
+    setManualEmails("");
+    setRecipientMode("upload");
     setErrors({});
     setApiError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  const handleManualEmailsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setManualEmails(val);
+    const parsed = extractEmailsFromText(val);
+    setEmails(parsed);
+    if (errors.file && parsed.length > 0) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.file;
+        return next;
+      });
+    }
+  };
+
+  const handleModeSwitch = (mode: "upload" | "manual") => {
+    setRecipientMode(mode);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.file;
+      return next;
+    });
+    if (mode === "manual") {
+      if (emails.length > 0 && !manualEmails.trim()) {
+        setManualEmails(emails.join(", "));
+      }
+    } else {
+      if (!fileName && !manualEmails.trim()) {
+        setEmails([]);
+      }
     }
   };
 
@@ -192,7 +229,9 @@ export function ComposeEmail({
     if (!subject.trim()) newErrors.subject = "Subject is required";
     if (!body.trim()) newErrors.body = "Email body is required";
     if (emails.length === 0) {
-      newErrors.file = "CSV or TXT recipient file is required";
+      newErrors.file = recipientMode === "upload"
+        ? "CSV or TXT recipient file is required"
+        : "Enter at least one valid recipient email address";
     }
     if (!startTime) {
       newErrors.startTime = "Please select a future time";
@@ -201,8 +240,8 @@ export function ComposeEmail({
     }
 
     const delay = Number(delayMs);
-    if (Number.isNaN(delay) || delay < 0) {
-      newErrors.delayMs = "Delay must be a valid number";
+    if (Number.isNaN(delay) || delay < 1000) {
+      newErrors.delayMs = "Delay must be at least 1 second (1000 ms)";
     }
 
     const limit = Number(hourlyLimit);
@@ -361,43 +400,126 @@ export function ComposeEmail({
             {/* Right Column: Recipients & Delivery Settings */}
             <div className="space-y-5 flex flex-col justify-between">
               
-              {/* Recipient Uploader Area */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-black uppercase tracking-wider text-text-muted/60">
-                  Recipients
-                </label>
-                {!fileName ? (
-                  <div
-                    onClick={triggerUpload}
-                    className={`border border-dashed border-border-main rounded-xl py-7 px-4 text-center cursor-pointer transition-colors bg-bg-surface flex flex-col items-center justify-center ${
-                      errors.file ? "border-err bg-err/5" : "hover:border-text-muted/35 hover:bg-bg-elevated/30"
-                    }`}
-                  >
-                    <Upload className="h-5.5 w-5.5 text-text-muted/60 mb-2 pointer-events-none stroke-[2.5]" />
-                    <span className="text-xs font-extrabold text-text-main pointer-events-none">Drop CSV or TXT</span>
-                    <span className="text-[10px] text-text-muted/45 mt-1 pointer-events-none">or Browse files</span>
+              {/* Recipient Input Area: Toggle between File Upload and Manual Typing */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-text-muted/60">
+                    Recipients
+                  </label>
+                  {/* Mode switch */}
+                  <div className="flex items-center bg-bg-secondary p-0.5 rounded-lg border border-border-main text-[10px] font-extrabold select-none">
+                    <button
+                      type="button"
+                      onClick={() => handleModeSwitch("upload")}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        recipientMode === "upload"
+                          ? "bg-bg-surface text-accent shadow-sm"
+                          : "text-text-muted hover:text-text-main"
+                      }`}
+                    >
+                      <Upload className="h-3 w-3" />
+                      Upload File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleModeSwitch("manual")}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        recipientMode === "manual"
+                          ? "bg-bg-surface text-accent shadow-sm"
+                          : "text-text-muted hover:text-text-main"
+                      }`}
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      Type Emails
+                    </button>
                   </div>
+                </div>
+
+                {recipientMode === "upload" ? (
+                  !fileName ? (
+                    <div
+                      onClick={triggerUpload}
+                      className={`border border-dashed border-border-main rounded-xl py-6 px-4 text-center cursor-pointer transition-colors bg-bg-surface flex flex-col items-center justify-center ${
+                        errors.file ? "border-err bg-err/5" : "hover:border-text-muted/35 hover:bg-bg-elevated/30"
+                      }`}
+                    >
+                      <Upload className="h-5.5 w-5.5 text-text-muted/60 mb-2 pointer-events-none stroke-[2.5]" />
+                      <span className="text-xs font-extrabold text-text-main pointer-events-none">Drop CSV or TXT</span>
+                      <span className="text-[10px] text-text-muted/45 mt-0.5 pointer-events-none">or Browse files</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="rounded-xl border border-border-main bg-bg-surface p-3 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                          <FileText className="h-5 w-5 text-accent shrink-0 stroke-[2.5]" />
+                          <div className="min-w-0">
+                            <span className="text-sm font-black text-text-main block truncate max-w-[200px]">
+                              {fileName}
+                            </span>
+                            <span className="text-[10px] text-accent font-extrabold block mt-0.5">
+                              {isParsing ? "Parsing..." : `✓ ${emails.length} recipients detected`}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveFile}
+                          className="text-xs font-black text-err hover:text-err/80 px-2.5 py-1.5 rounded transition-colors cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      {emails.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 p-2 bg-bg-surface border border-border-main rounded-xl max-h-16 overflow-y-auto">
+                          {emails.slice(0, 2).map((email) => (
+                            <span
+                              key={email}
+                              className="inline-flex items-center bg-accent/10 border border-accent/25 px-2.5 py-0.5 rounded text-[10px] font-bold text-accent"
+                            >
+                              {email}
+                            </span>
+                          ))}
+                          {emails.length > 2 && (
+                            <span className="inline-flex items-center bg-accent/10 border border-accent/25 px-2.5 py-0.5 rounded text-[10px] font-black text-accent">
+                              +{emails.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
                 ) : (
                   <div className="space-y-2">
-                    <div className="rounded-xl border border-border-main bg-bg-surface p-3.5 flex items-center justify-between shadow-sm">
-                      <div className="flex items-center gap-2.5 overflow-hidden">
-                        <FileText className="h-5 w-5 text-accent shrink-0 stroke-[2.5]" />
-                        <div className="min-w-0">
-                          <span className="text-sm font-black text-text-main block truncate max-w-[200px]">
-                            {fileName}
-                          </span>
-                          <span className="text-[10px] text-accent font-extrabold block mt-0.5">
-                            {isParsing ? "Parsing..." : `✓ ${emails.length} recipients detected`}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleRemoveFile}
-                        className="text-xs font-black text-err hover:text-err/80 px-2.5 py-1.5 rounded transition-colors"
-                      >
-                        Remove
-                      </button>
+                    <textarea
+                      value={manualEmails}
+                      onChange={handleManualEmailsChange}
+                      placeholder="Type or paste email addresses (separated by commas, spaces, or newlines)&#10;e.g. alex@reachinbox.com, user@example.com"
+                      rows={3}
+                      className={`w-full p-3 text-xs text-text-main font-medium bg-bg-surface border rounded-xl placeholder-text-muted/40 focus:outline-none focus:border-accent resize-none ${
+                        errors.file ? "border-err" : "border-border-main"
+                      }`}
+                    />
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[10px] text-text-muted/70 font-bold">
+                        {emails.length > 0 ? (
+                          <span className="text-accent font-black">✓ {emails.length} valid recipient{emails.length > 1 ? "s" : ""} detected</span>
+                        ) : (
+                          "Separate multiple recipients with commas or newlines"
+                        )}
+                      </span>
+                      {manualEmails && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManualEmails("");
+                            setEmails([]);
+                          }}
+                          className="text-[10px] font-black text-err hover:text-err/80 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
 
                     {emails.length > 0 && (
