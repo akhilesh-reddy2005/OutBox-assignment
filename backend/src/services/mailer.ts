@@ -1,32 +1,30 @@
 import "dotenv/config";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-    host: process.env.ETHEREAL_HOST,
-    port: Number(process.env.ETHEREAL_PORT),
-    secure: process.env.ETHEREAL_SECURE === "true",
-    auth: {
-        user: process.env.ETHEREAL_USER,
-        pass: process.env.ETHEREAL_PASSWORD,
-    },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendEmail(
     recipient: string,
     subject: string,
     body: string
 ) {
-    const info = await transporter.sendMail({
-        from: `"ReachInbox" <${process.env.ETHEREAL_USER}>`,
-        to: recipient,
+    const { data, error } = await resend.emails.send({
+        from: process.env.EMAIL_FROM || "ReachInbox <onboarding@resend.dev>",
+        to: [recipient],
         subject,
         text: body,
     });
 
-    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    if (!data?.id) {
+        throw new Error("Email provider did not return a message ID");
+    }
 
     return {
-        messageId: info.messageId,
-        previewUrl,
+        messageId: data.id,
+        previewUrl: null,
     };
 }
