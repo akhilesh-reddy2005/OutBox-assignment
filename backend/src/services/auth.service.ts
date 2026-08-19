@@ -1,9 +1,23 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
+const rawSecret = process.env.JWT_SECRET;
+if (!rawSecret) {
     throw new Error("JWT_SECRET environment variable is required");
+}
+const JWT_SECRET: string = rawSecret;
+
+export interface TokenPayload {
+    userId: string;
+}
+
+function isTokenPayload(payload: unknown): payload is TokenPayload {
+    return (
+        typeof payload === "object" &&
+        payload !== null &&
+        "userId" in payload &&
+        typeof (payload as { userId: unknown }).userId === "string"
+    );
 }
 
 export function createToken(userId: string): string {
@@ -18,12 +32,12 @@ export function createToken(userId: string): string {
     );
 }
 
-export function verifyToken(token: string): {
-    userId: string;
-} {
-    return jwt.verify(token, JWT_SECRET) as {
-        userId: string;
-    };
+export function verifyToken(token: string): TokenPayload {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (!isTokenPayload(decoded)) {
+        throw new Error("Invalid or corrupted token payload");
+    }
+    return decoded;
 }
 
 export function hashPassword(password: string): string {
