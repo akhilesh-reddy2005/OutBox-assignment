@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { Input } from "../components/ui/Input";
@@ -8,18 +8,16 @@ import { GoogleLoginButton } from "../components/auth/GoogleLoginButton";
 import { getErrorMessage } from "../services/api";
 import { useToast } from "../hooks/useToast";
 
-export function Login() {
-  const { login } = useAuth();
+export function Register() {
+  const { register } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
-  const authError = searchParams.get("error");
-
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(authError ? "Google authentication failed. Please try again." : null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,8 +25,8 @@ export function Login() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      showToast("Welcome back!", "success");
+      await register(name, email, password);
+      showToast("Account created successfully!", "success");
       navigate("/dashboard");
     } catch (err: unknown) {
       setError(getErrorMessage(err));
@@ -37,16 +35,11 @@ export function Login() {
     }
   };
 
-  const handleForgotPassword = (e: React.MouseEvent) => {
-    e.preventDefault();
-    showToast("Password reset instructions sent to your email", "success");
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4 relative overflow-hidden">
-      {/* Decorative background blur objects */}
-      <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-900/10 rounded-full blur-[120px]" />
+      {/* Decorative gradients */}
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-purple-900/10 rounded-full blur-[120px]" />
 
       <div className="w-full max-w-md z-10 animate-slide-in">
         <div className="text-center mb-8">
@@ -55,16 +48,16 @@ export function Login() {
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">ReachInbox</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Schedule and manage your email campaigns
+            Create an account to start scheduling your email campaigns
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 shadow-2xl backdrop-blur-xl">
           <h2 className="text-xl font-bold text-white mb-1">
-            Welcome back
+            Create an account
           </h2>
           <p className="text-sm text-slate-400 mb-6">
-            Sign in to access your email dashboard
+            Get started for free
           </p>
 
           {error && (
@@ -74,6 +67,19 @@ export function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Input
+                label="Full Name"
+                type="text"
+                required
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20"
+                labelClassName="text-slate-300"
+              />
+            </div>
+
             <div>
               <Input
                 label="Email ID"
@@ -88,25 +94,15 @@ export function Login() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-slate-300">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <a
-                  href="#forgot-password"
-                  onClick={handleForgotPassword}
-                  className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-                >
-                  Forgot Password?
-                </a>
-              </div>
-              <input
+              <Input
+                label="Password"
                 type="password"
                 required
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-slate-900 disabled:text-slate-500"
+                className="bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-indigo-500/20"
+                labelClassName="text-slate-300"
               />
             </div>
 
@@ -116,7 +112,7 @@ export function Login() {
               isLoading={isLoading}
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-all focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
             >
-              Sign In
+              Sign Up
             </Button>
           </form>
 
@@ -132,12 +128,12 @@ export function Login() {
           <GoogleLoginButton />
 
           <p className="mt-8 text-center text-sm text-slate-400">
-            Don't have an account?{" "}
+            Already have an account?{" "}
             <Link
-              to="/register"
+              to="/login"
               className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
             >
-              Sign Up
+              Sign In
             </Link>
           </p>
         </div>

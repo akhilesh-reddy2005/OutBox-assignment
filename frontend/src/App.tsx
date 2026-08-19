@@ -3,6 +3,7 @@ import { AuthProvider } from "./hooks/useAuth";
 import { ToastProvider } from "./hooks/useToast";
 import { ProtectedRoute, PublicRoute } from "./components/auth/RouteGuards";
 import { Login } from "./pages/Login";
+import { Register } from "./pages/Register";
 import { Dashboard } from "./pages/Dashboard";
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
           <Routes>
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
             </Route>
 
             <Route element={<ProtectedRoute />}>

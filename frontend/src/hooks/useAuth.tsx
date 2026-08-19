@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMe, logout as logoutApi } from "../services/auth.api";
+import { getMe, logout as logoutApi, loginWithEmailPassword, registerWithEmailPassword } from "../services/auth.api";
 import { setUnauthorizedHandler } from "../services/api";
 import type { User } from "../types/auth";
 
@@ -18,6 +18,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -83,6 +85,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const login = useCallback(async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const response = await loginWithEmailPassword(email, password);
+      setUser(response.user);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const response = await registerWithEmailPassword(name, email, password);
+      setUser(response.user);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -90,8 +112,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       logout,
       refreshUser,
+      login,
+      register,
     }),
-    [user, isLoading, logout, refreshUser]
+    [user, isLoading, logout, refreshUser, login, register]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

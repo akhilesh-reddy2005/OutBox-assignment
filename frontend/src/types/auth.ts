@@ -14,3 +14,13 @@ export interface LogoutResponse {
   success: boolean;
   message: string;
 }
+
+export interface LoginResponse {
+  success: boolean;
+  user: User;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  user: User;
+}
