@@ -31,7 +31,7 @@ router.post("/schedule", async (req, res) => {
         const jobs = [];
 
         for (let i = 0; i < data.emails.length; i++) {
-            const recipient = data.emails[i];
+            const recipient = data.emails[i]!;
 
             const scheduledAt = new Date(
                 startTime.getTime() + i * data.delayMs
