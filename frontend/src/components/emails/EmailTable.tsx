@@ -10,6 +10,7 @@ interface EmailTableProps {
   timeColumn: "scheduled" | "sent";
   emptyTitle: string;
   emptyDescription: string;
+  onEmailClick: (email: EmailJob) => void;
 }
 
 export function EmailTable({
@@ -18,10 +19,11 @@ export function EmailTable({
   timeColumn,
   emptyTitle,
   emptyDescription,
+  onEmailClick,
 }: EmailTableProps) {
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-6">
+      <div className="bg-bg-surface border border-border-main rounded-xl p-6">
         <TableSkeleton rows={5} />
       </div>
     );
@@ -29,93 +31,61 @@ export function EmailTable({
 
   if (emails.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white">
+      <div className="bg-bg-surface border border-border-main rounded-xl overflow-hidden">
         <EmptyState title={emptyTitle} description={emptyDescription} />
       </div>
     );
   }
 
   return (
-    <>
-      {/* Desktop table */}
-      <div className="hidden md:block rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Email
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Subject
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                {timeColumn === "scheduled" ? "Scheduled Time" : "Sent Time"}
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {emails.map((email) => {
-              const timeValue =
-                timeColumn === "scheduled" ? email.scheduledAt : email.sentAt;
-              const { date, time } = formatDateParts(timeValue);
+    <div className="bg-bg-surface border border-border-main rounded-xl overflow-hidden font-sans">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="border-b border-border-main bg-bg-secondary select-none">
+            <th className="px-6 py-3.5 text-[10px] font-black uppercase tracking-widest text-text-muted w-1/4">
+              Recipient
+            </th>
+            <th className="px-6 py-3.5 text-[10px] font-black uppercase tracking-widest text-text-muted w-2/5">
+              Subject
+            </th>
+            <th className="px-6 py-3.5 text-[10px] font-black uppercase tracking-widest text-text-muted w-1/5">
+              {timeColumn === "scheduled" ? "Scheduled" : "Sent"}
+            </th>
+            <th className="px-6 py-3.5 text-[10px] font-black uppercase tracking-widest text-text-muted text-right pr-7 w-1/6">
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border-main/65">
+          {emails.map((email) => {
+            const timeValue =
+              timeColumn === "scheduled" ? email.scheduledAt : email.sentAt;
+            const { date, time } = formatDateParts(timeValue);
 
-              return (
-                <tr
-                  key={email.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-6 py-4 font-medium text-gray-900">
-                    {email.recipient}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 max-w-xs truncate">
-                    {email.subject}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    <div>{date}</div>
-                    {time && (
-                      <div className="text-xs text-gray-400">{time}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge status={email.status} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile cards */}
-      <div className="md:hidden space-y-3">
-        {emails.map((email) => {
-          const timeValue =
-            timeColumn === "scheduled" ? email.scheduledAt : email.sentAt;
-          const { date, time } = formatDateParts(timeValue);
-
-          return (
-            <div
-              key={email.id}
-              className="rounded-xl border border-gray-200 bg-white p-4 space-y-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium text-gray-900 break-all">
+            return (
+              <tr
+                key={email.id}
+                onClick={() => onEmailClick(email)}
+                className="hover:bg-bg-elevated/40 transition-colors cursor-pointer text-sm font-bold text-text-main h-13"
+              >
+                <td className="px-6 py-2.5 break-all truncate font-semibold">
                   {email.recipient}
-                </p>
-                <Badge status={email.status} />
-              </div>
-              <p className="text-sm text-gray-600">{email.subject}</p>
-              <p className="text-xs text-gray-400">
-                {date}
-                {time && ` · ${time}`}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-    </>
+                </td>
+                <td className="px-6 py-2.5 text-text-muted truncate max-w-0 font-medium">
+                  {email.subject}
+                </td>
+                <td className="px-6 py-2.5 text-text-muted/70 font-medium">
+                  <span>{date}</span>
+                  {time && <span className="text-xs text-text-muted/45 ml-1.5 font-semibold">· {time}</span>}
+                </td>
+                <td className="px-6 py-2.5 text-right pr-7">
+                  <Badge status={email.status} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

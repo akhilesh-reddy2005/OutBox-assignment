@@ -6,9 +6,10 @@ interface SentEmailsProps {
   emails: EmailJob[];
   isLoading: boolean;
   onMount: () => void;
+  onEmailClick: (email: EmailJob) => void;
 }
 
-export function SentEmails({ emails, isLoading, onMount }: SentEmailsProps) {
+export function SentEmails({ emails, isLoading, onMount, onEmailClick }: SentEmailsProps) {
   useEffect(() => {
     onMount();
   }, [onMount]);
@@ -20,6 +21,7 @@ export function SentEmails({ emails, isLoading, onMount }: SentEmailsProps) {
       timeColumn="sent"
       emptyTitle="No sent emails yet"
       emptyDescription="Sent and failed emails will appear here once processed."
+      onEmailClick={onEmailClick}
     />
   );
 }

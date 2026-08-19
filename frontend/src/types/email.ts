@@ -6,11 +6,14 @@ export interface EmailJob {
   subject: string;
   body: string;
   scheduledAt: string;
+  sendStartedAt: string | null;
   sentAt: string | null;
   status: EmailStatus;
   attempts: number;
   error: string | null;
   idempotencyKey: string;
+  delayMs: number;
+  hourlyLimit: number;
   userId: string | null;
   createdAt: string;
   updatedAt: string;

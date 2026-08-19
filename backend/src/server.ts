@@ -1,6 +1,5 @@
 import "dotenv/config";
 
-import cookieParser from "cookie-parser";
 import passport from "./config/passport";
 
 import app from "./app";
@@ -9,8 +8,7 @@ import authRoutes from "./routes/auth.routes";
 import "./workers/email.worker";
 import { prisma } from "./db";
 
-// Authentication middleware
-app.use(cookieParser());
+// Authentication middleware (cookieParser already applied in app.ts)
 app.use(passport.initialize());
 
 // Authentication routes

@@ -11,23 +11,25 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
 
     return (
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5 w-full font-sans text-left">
         {label && (
           <label
             htmlFor={inputId}
-            className={`text-sm font-medium text-gray-700 ${labelClassName}`}
+            className={`text-xs font-bold text-text-muted uppercase tracking-wider select-none ${labelClassName}`}
           >
             {label}
-            {props.required && <span className="text-red-500 ml-0.5">*</span>}
+            {props.required && <span className="text-err ml-0.5">*</span>}
           </label>
         )}
         <input
           ref={ref}
           id={inputId}
-          className={`w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-gray-50 disabled:text-gray-500 ${error ? "border-red-400 focus:border-red-500 focus:ring-red-500/20" : ""} ${className}`}
+          className={`w-full rounded-lg border border-border-main bg-bg-surface px-4 py-2.5 text-sm text-text-main font-semibold placeholder-text-muted/40 transition-all focus:bg-bg-elevated focus:border-accent focus:outline-none disabled:bg-bg-primary disabled:text-text-muted/30 ${
+            error ? "border-err focus:border-err bg-err/5" : ""
+          } ${className}`}
           {...props}
         />
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-[11px] font-bold text-err mt-0.5">{error}</p>}
       </div>
     );
   }

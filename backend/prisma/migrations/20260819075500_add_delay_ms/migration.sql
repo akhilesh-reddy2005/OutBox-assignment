@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "EmailJob" ADD COLUMN     "delayMs" INTEGER NOT NULL DEFAULT 2000;

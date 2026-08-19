@@ -44,32 +44,41 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            role="status"
-            className={`animate-slide-in rounded-lg px-4 py-3 text-sm font-medium shadow-lg border ${
-              toast.type === "success"
-                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                : toast.type === "error"
-                  ? "bg-red-50 text-red-800 border-red-200"
-                  : "bg-white text-gray-800 border-gray-200"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <span>{toast.message}</span>
-              <button
-                type="button"
-                onClick={() => dismiss(toast.id)}
-                className="text-current opacity-60 hover:opacity-100 shrink-0"
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
+      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2.5 max-w-sm select-none font-sans">
+        {toasts.map((toast) => {
+          let prefix = "●";
+          let dotColor = "text-accent-sub";
+          if (toast.type === "success") {
+            prefix = "✓";
+            dotColor = "text-accent";
+          } else if (toast.type === "error") {
+            prefix = "!";
+            dotColor = "text-err";
+          }
+
+          return (
+            <div
+              key={toast.id}
+              role="status"
+              className="animate-slide-in rounded-lg px-4 py-3 text-[11px] font-black border border-border-main bg-bg-elevated text-text-main shadow-lg"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-black ${dotColor}`}>{prefix}</span>
+                  <span>{toast.message}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dismiss(toast.id)}
+                  className="text-text-muted hover:text-text-main shrink-0 font-extrabold text-sm border-0 bg-transparent cursor-pointer"
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );

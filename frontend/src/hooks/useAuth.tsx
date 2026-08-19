@@ -90,6 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await loginWithEmailPassword(email, password);
       setUser(response.user);
+    } catch (err) {
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -100,6 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await registerWithEmailPassword(name, email, password);
       setUser(response.user);
+    } catch (err) {
+      throw err;
     } finally {
       setIsLoading(false);
     }

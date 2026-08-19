@@ -9,19 +9,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants = {
   primary:
-    "bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:ring-indigo-500 shadow-sm",
+    "bg-accent text-white dark:text-[#0B0F14] hover:opacity-95 transition-opacity focus-visible:ring-2 focus-visible:ring-accent/40",
   secondary:
-    "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus-visible:ring-gray-400",
+    "bg-bg-surface border border-border-main text-text-main hover:bg-bg-elevated hover:border-text-muted/30 transition-all focus-visible:ring-2 focus-visible:ring-text-muted/20",
   ghost:
-    "bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-gray-400",
+    "bg-transparent text-text-muted hover:bg-bg-surface hover:text-text-main transition-colors focus-visible:ring-2 focus-visible:ring-offset-1",
   danger:
-    "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500 shadow-sm",
+    "bg-err text-white dark:text-[#0B0F14] hover:opacity-95 transition-opacity focus-visible:ring-2 focus-visible:ring-err/40",
 };
 
 const sizes = {
-  sm: "px-3 py-1.5 text-sm",
-  md: "px-4 py-2 text-sm",
-  lg: "px-5 py-2.5 text-base",
+  sm: "px-3.5 py-2 text-xs font-bold rounded-md",
+  md: "px-4.5 py-2.5 text-sm font-extrabold rounded-lg",
+  lg: "px-5.5 py-3 text-base font-extrabold rounded-lg",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -41,10 +41,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || isLoading}
-        className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
+        className={`inline-flex items-center justify-center gap-2 font-bold tracking-tight focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 select-none cursor-pointer ${variants[variant]} ${sizes[size]} ${className}`}
         {...props}
       >
-        {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+        {isLoading && <Loader2 className="h-4.5 w-4.5 animate-spin shrink-0" />}
         {children}
       </button>
     );

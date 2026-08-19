@@ -1,9 +1,20 @@
-import { useCallback, useRef, useState, type FormEvent } from "react";
-import { Upload, X, FileText } from "lucide-react";
-import { Modal } from "../ui/Modal";
-import { Input } from "../ui/Input";
-import { Textarea } from "../ui/Textarea";
+import { useRef, useState, useEffect, type FormEvent } from "react";
+import { 
+  X, 
+  FileText,
+  Undo, 
+  Redo, 
+  Type, 
+  Bold, 
+  Italic, 
+  Underline, 
+  AlignLeft, 
+  ListOrdered, 
+  Upload,
+  ArrowLeft
+} from "lucide-react";
 import { Button } from "../ui/Button";
+import { DateTimePicker } from "../ui/DateTimePicker";
 import { parseEmailFile } from "../../utils/csvParser";
 import {
   datetimeLocalToISO,
@@ -20,7 +31,7 @@ interface ComposeEmailProps {
 
 const defaultStartTime = () => {
   const date = new Date();
-  date.setMinutes(date.getMinutes() + 5);
+  date.setMinutes(date.getMinutes() + 10);
   date.setSeconds(0, 0);
   return toDatetimeLocalValue(date);
 };
@@ -32,6 +43,8 @@ export function ComposeEmail({
   isSubmitting,
 }: ComposeEmailProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [startTime, setStartTime] = useState(defaultStartTime);
@@ -41,8 +54,31 @@ export function ComposeEmail({
   const [fileName, setFileName] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const resetForm = useCallback(() => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+      handleClose();
+    }
+  };
+
+  const resetForm = () => {
     setSubject("");
     setBody("");
     setStartTime(defaultStartTime());
@@ -51,14 +87,19 @@ export function ComposeEmail({
     setEmails([]);
     setFileName(null);
     setErrors({});
+    setApiError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, []);
+  };
 
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const triggerUpload = () => {
+    fileInputRef.current?.click();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,7 +112,7 @@ export function ComposeEmail({
     if (!validTypes.includes(ext)) {
       setErrors((prev) => ({
         ...prev,
-        file: "Please upload a .csv or .txt file.",
+        file: "Upload a valid CSV or TXT file",
       }));
       return;
     }
@@ -91,7 +132,7 @@ export function ComposeEmail({
         setFileName(null);
         setErrors((prev) => ({
           ...prev,
-          file: "No valid email addresses found in the file.",
+          file: "No valid email addresses found",
         }));
         return;
       }
@@ -101,37 +142,72 @@ export function ComposeEmail({
     } catch {
       setErrors((prev) => ({
         ...prev,
-        file: "Failed to read the file. Please try again.",
+        file: "Parse error",
       }));
     } finally {
       setIsParsing(false);
     }
   };
 
-  const removeEmail = (email: string) => {
-    setEmails((prev) => prev.filter((e) => e !== email));
+  const handleRemoveFile = () => {
+    setEmails([]);
+    setFileName(null);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.file;
+      return next;
+    });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleTomorrow = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    setStartTime(toDatetimeLocalValue(d));
+  };
+
+  const handle10AM = () => {
+    const d = new Date();
+    d.setHours(10, 0, 0, 0);
+    if (d.getTime() <= Date.now()) {
+      d.setDate(d.getDate() + 1);
+    }
+    setStartTime(toDatetimeLocalValue(d));
+  };
+
+  const handle11AM = () => {
+    const d = new Date();
+    d.setHours(11, 0, 0, 0);
+    if (d.getTime() <= Date.now()) {
+      d.setDate(d.getDate() + 1);
+    }
+    setStartTime(toDatetimeLocalValue(d));
   };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!subject.trim()) newErrors.subject = "Subject is required.";
-    if (!body.trim()) newErrors.body = "Body is required.";
-    if (emails.length === 0)
-      newErrors.file = "Please upload a file with valid email addresses.";
-    if (!startTime) newErrors.startTime = "Start time is required.";
-    else if (new Date(startTime).getTime() <= Date.now()) {
-      newErrors.startTime = "Start time must be in the future.";
+    if (!subject.trim()) newErrors.subject = "Subject is required";
+    if (!body.trim()) newErrors.body = "Email body is required";
+    if (emails.length === 0) {
+      newErrors.file = "CSV or TXT recipient file is required";
+    }
+    if (!startTime) {
+      newErrors.startTime = "Please select a future time";
+    } else if (new Date(startTime).getTime() <= Date.now()) {
+      newErrors.startTime = "Please select a future time";
     }
 
     const delay = Number(delayMs);
     if (Number.isNaN(delay) || delay < 0) {
-      newErrors.delayMs = "Delay must be a valid number.";
+      newErrors.delayMs = "Delay must be a valid number";
     }
 
     const limit = Number(hourlyLimit);
     if (Number.isNaN(limit) || limit <= 0) {
-      newErrors.hourlyLimit = "Hourly limit must be greater than 0.";
+      newErrors.hourlyLimit = "Enter a valid positive number";
     }
 
     setErrors(newErrors);
@@ -140,6 +216,8 @@ export function ComposeEmail({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setApiError(null);
+    if (isSubmitting) return;
     if (!validate()) return;
 
     const payload: ScheduleEmailPayload = {
@@ -153,165 +231,309 @@ export function ComposeEmail({
 
     try {
       await onSubmit(payload);
-      resetForm();
     } catch {
-      // Error handled by parent via toast
+      setApiError("Unable to schedule campaign");
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Compose New Email" size="xl">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Input
-          label="Subject"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder="Welcome Email"
-          required
-          error={errors.subject}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-[1px]"
+      onClick={handleBackdropClick}
+    >
+      <div
+        ref={modalRef}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[920px] max-h-[95vh] sm:max-h-[90vh] bg-bg-surface rounded-2xl border border-border-main shadow-2xl flex flex-col overflow-hidden animate-slide-in font-sans text-text-main"
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.txt"
+          onChange={handleFileChange}
+          className="hidden"
         />
-
-        <Textarea
-          label="Body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Write your email content here..."
-          required
-          error={errors.body}
-        />
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">
-            Recipient List
-            <span className="text-red-500 ml-0.5">*</span>
-          </label>
-          <div
-            className={`relative rounded-lg border-2 border-dashed transition-colors ${
-              errors.file
-                ? "border-red-300 bg-red-50/50"
-                : "border-gray-300 bg-gray-50 hover:border-indigo-400 hover:bg-indigo-50/30"
-            }`}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.txt"
-              onChange={handleFileChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              aria-label="Upload CSV or text file"
-            />
-            <div className="flex flex-col items-center justify-center py-8 px-4 text-center pointer-events-none">
-              {isParsing ? (
-                <p className="text-sm text-gray-500">Parsing file...</p>
-              ) : fileName ? (
-                <>
-                  <FileText className="h-8 w-8 text-indigo-500 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">{fileName}</p>
-                  <p className="text-sm text-indigo-600 mt-1">
-                    {emails.length} email address{emails.length !== 1 ? "es" : ""}{" "}
-                    detected
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                  <p className="text-sm font-medium text-gray-700">
-                    Upload CSV or TXT file
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    One email address per line or comma-separated
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-          {errors.file && (
-            <p className="text-xs text-red-600">{errors.file}</p>
-          )}
-        </div>
-
-        {emails.length > 0 && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-medium text-gray-500 mb-2">
-              Detected addresses
-            </p>
-            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-              {emails.map((email) => (
-                <span
-                  key={email}
-                  className="inline-flex items-center gap-1 rounded-md bg-white border border-gray-200 px-2 py-0.5 text-xs text-gray-700"
-                >
-                  {email}
-                  <button
-                    type="button"
-                    onClick={() => removeEmail(email)}
-                    className="text-gray-400 hover:text-gray-600"
-                    aria-label={`Remove ${email}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+        {/* Header workspace title bar */}
+        <div className="flex items-center justify-between border-b border-border-main px-6 py-5 bg-bg-secondary shrink-0">
+          <div className="flex items-center gap-3.5">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="text-text-muted hover:text-text-main p-2 rounded hover:bg-bg-elevated transition-colors cursor-pointer"
+              title="Back"
+            >
+              <ArrowLeft className="h-4.5 w-4.5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-sm font-black uppercase tracking-wider">Compose Email</h2>
+                <span className="text-[10px] font-black uppercase tracking-widest text-text-muted bg-bg-elevated border border-border-main px-2 py-0.5 rounded">
+                  Draft
                 </span>
-              ))}
+              </div>
+              <p className="text-[10px] text-text-muted/70 font-semibold mt-0.5">
+                Draft, schedule and dispatch outreach
+              </p>
             </div>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={handleClose}
+            className="text-text-muted hover:text-text-main p-2.5 rounded hover:bg-bg-elevated transition-colors shrink-0 cursor-pointer"
+            aria-label="Close workspace"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input
-            label="Start Time"
-            type="datetime-local"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            required
-            error={errors.startTime}
-          />
+        {/* Form elements */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden bg-bg-primary">
+          {/* Main 2-Pane Split Workspace */}
+          <div className="flex-1 overflow-y-auto p-6.5 grid grid-cols-1 md:grid-cols-2 gap-6.5 min-h-0 text-sm font-semibold text-text-muted">
+            
+            {/* Left Column: Email Workspace */}
+            <div className="space-y-5 flex flex-col justify-between">
+              {apiError && (
+                <div className="rounded-lg border border-err/25 bg-err/5 px-3.5 py-2.5 text-xs text-err text-center font-bold">
+                  {apiError}
+                </div>
+              )}
 
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="delay-ms"
-              className="text-sm font-medium text-gray-700"
-            >
-              Delay between emails
-            </label>
-            <select
-              id="delay-ms"
-              value={delayMs}
-              onChange={(e) => setDelayMs(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            >
-              <option value="1000">1000 ms</option>
-              <option value="2000">2000 ms</option>
-              <option value="5000">5000 ms</option>
-            </select>
-            {errors.delayMs && (
-              <p className="text-xs text-red-600">{errors.delayMs}</p>
-            )}
+              {/* Subject */}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="subject-input" className="text-xs font-black uppercase tracking-wider text-text-muted/60">
+                  Subject
+                </label>
+                <input
+                  id="subject-input"
+                  type="text"
+                  value={subject}
+                  onChange={(e) => {
+                    setSubject(e.target.value);
+                    if (errors.subject) setErrors((prev) => ({ ...prev, subject: "" }));
+                  }}
+                  placeholder="Campaign subject line..."
+                  required
+                  className={`w-full h-10 px-3.5 rounded-lg border border-border-main bg-bg-surface text-sm text-text-main font-bold focus:outline-none focus:border-accent ${
+                    errors.subject ? "border-err" : ""
+                  }`}
+                />
+                {errors.subject && <p className="text-xs text-err mt-0.5">{errors.subject}</p>}
+              </div>
+
+              {/* Text Message box */}
+              <div className="flex-1 flex flex-col gap-1.5 min-h-[180px]">
+                <label htmlFor="message-box" className="text-xs font-black uppercase tracking-wider text-text-muted/60">
+                  Message
+                </label>
+                <div className="flex-1 border border-border-main rounded-lg bg-bg-surface overflow-hidden flex flex-col">
+                  {/* Clean Mock Visual Editor */}
+                  <div className="border-b border-border-main bg-bg-secondary px-2.5 py-1.5 flex items-center gap-1 select-none shrink-0">
+                    <button type="button" className="p-0.5 rounded text-text-muted hover:text-text-main" title="Undo"><Undo className="h-3.5 w-3.5" /></button>
+                    <button type="button" className="p-0.5 rounded text-text-muted hover:text-text-main" title="Redo"><Redo className="h-3.5 w-3.5" /></button>
+                    <div className="w-px h-4 bg-border-main mx-1" />
+                    <button type="button" className="p-0.5 rounded text-text-muted hover:text-text-main" title="Text"><Type className="h-3.5 w-3.5" /></button>
+                    <button type="button" className="p-0.5 rounded text-text-muted hover:text-text-main" title="Bold"><Bold className="h-3.5 w-3.5" /></button>
+                    <button type="button" className="p-0.5 rounded text-text-muted hover:text-text-main" title="Italic"><Italic className="h-3.5 w-3.5" /></button>
+                    <button type="button" className="p-0.5 rounded text-text-muted hover:text-text-main" title="Underline"><Underline className="h-3.5 w-3.5" /></button>
+                    <div className="w-px h-4 bg-border-main mx-1" />
+                    <button type="button" className="p-0.5 rounded text-text-muted hover:text-text-main" title="Align"><AlignLeft className="h-3.5 w-3.5" /></button>
+                    <button type="button" className="p-0.5 rounded text-text-muted hover:text-text-main" title="List"><ListOrdered className="h-3.5 w-3.5" /></button>
+                  </div>
+                  <textarea
+                    id="message-box"
+                    value={body}
+                    onChange={(e) => {
+                      setBody(e.target.value);
+                      if (errors.body) setErrors((prev) => ({ ...prev, body: "" }));
+                    }}
+                    placeholder="Write your message..."
+                    required
+                    className="flex-1 w-full p-4 text-sm text-text-main font-medium bg-transparent placeholder-text-muted/30 focus:outline-none resize-none min-h-0"
+                  />
+                </div>
+                {errors.body && <p className="text-xs text-err">{errors.body}</p>}
+              </div>
+            </div>
+
+            {/* Right Column: Recipients & Delivery Settings */}
+            <div className="space-y-5 flex flex-col justify-between">
+              
+              {/* Recipient Uploader Area */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-text-muted/60">
+                  Recipients
+                </label>
+                {!fileName ? (
+                  <div
+                    onClick={triggerUpload}
+                    className={`border border-dashed border-border-main rounded-xl py-7 px-4 text-center cursor-pointer transition-colors bg-bg-surface flex flex-col items-center justify-center ${
+                      errors.file ? "border-err bg-err/5" : "hover:border-text-muted/35 hover:bg-bg-elevated/30"
+                    }`}
+                  >
+                    <Upload className="h-5.5 w-5.5 text-text-muted/60 mb-2 pointer-events-none stroke-[2.5]" />
+                    <span className="text-xs font-extrabold text-text-main pointer-events-none">Drop CSV or TXT</span>
+                    <span className="text-[10px] text-text-muted/45 mt-1 pointer-events-none">or Browse files</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="rounded-xl border border-border-main bg-bg-surface p-3.5 flex items-center justify-between shadow-sm">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <FileText className="h-5 w-5 text-accent shrink-0 stroke-[2.5]" />
+                        <div className="min-w-0">
+                          <span className="text-sm font-black text-text-main block truncate max-w-[200px]">
+                            {fileName}
+                          </span>
+                          <span className="text-[10px] text-accent font-extrabold block mt-0.5">
+                            {isParsing ? "Parsing..." : `✓ ${emails.length} recipients detected`}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveFile}
+                        className="text-xs font-black text-err hover:text-err/80 px-2.5 py-1.5 rounded transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {emails.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 p-2 bg-bg-surface border border-border-main rounded-xl max-h-16 overflow-y-auto">
+                        {emails.slice(0, 2).map((email) => (
+                          <span
+                            key={email}
+                            className="inline-flex items-center bg-accent/10 border border-accent/25 px-2.5 py-0.5 rounded text-[10px] font-bold text-accent"
+                          >
+                            {email}
+                          </span>
+                        ))}
+                        {emails.length > 2 && (
+                          <span className="inline-flex items-center bg-accent/10 border border-accent/25 px-2.5 py-0.5 rounded text-[10px] font-black text-accent">
+                            +{emails.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {errors.file && <p className="text-xs text-err">{errors.file}</p>}
+              </div>
+
+              {/* Delivery Settings */}
+              <div className="border-t border-border-main pt-5 space-y-5">
+                <span className="text-xs font-black uppercase tracking-wider text-text-muted/60 block">Delivery Parameters</span>
+                
+                {/* Start Time with Presets */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center gap-2">
+                    <label htmlFor="time-picker" className="text-xs font-bold text-text-muted/70">
+                      Start Time
+                    </label>
+                    <div className="flex gap-2 select-none">
+                      <button
+                        type="button"
+                        onClick={handleTomorrow}
+                        className="px-2.5 py-1 rounded border border-border-main bg-bg-surface text-[9px] font-black text-text-muted hover:text-text-main hover:border-text-muted/30 transition-colors cursor-pointer"
+                      >
+                        Tomorrow
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handle10AM}
+                        className="px-2.5 py-1 rounded border border-border-main bg-bg-surface text-[9px] font-black text-text-muted hover:text-text-main hover:border-text-muted/30 transition-colors cursor-pointer"
+                      >
+                        10 AM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handle11AM}
+                        className="px-2.5 py-1 rounded border border-border-main bg-bg-surface text-[9px] font-black text-text-muted hover:text-text-main hover:border-text-muted/30 transition-colors cursor-pointer"
+                      >
+                        11 AM
+                      </button>
+                    </div>
+                  </div>
+                  <DateTimePicker
+                    value={startTime}
+                    onChange={(val) => {
+                      setStartTime(val);
+                      if (errors.startTime) setErrors((prev) => ({ ...prev, startTime: "" }));
+                    }}
+                    error={errors.startTime}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-5">
+                  {/* Delay select */}
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="delay-picker" className="text-xs font-bold text-text-muted/70">
+                      Delay
+                    </label>
+                    <select
+                      id="delay-picker"
+                      value={delayMs}
+                      onChange={(e) => setDelayMs(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg border border-border-main bg-bg-surface text-sm text-text-main font-bold focus:outline-none focus:border-accent cursor-pointer"
+                    >
+                      <option value="1000">1 sec</option>
+                      <option value="2000">2 sec</option>
+                      <option value="5000">5 sec</option>
+                      <option value="10000">10 sec</option>
+                    </select>
+                  </div>
+
+                  {/* Hourly Sending limits */}
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="limit-picker" className="text-xs font-bold text-text-muted/70">
+                      Emails / Hour
+                    </label>
+                    <input
+                      id="limit-picker"
+                      type="number"
+                      min={1}
+                      value={hourlyLimit}
+                      onChange={(e) => {
+                        setHourlyLimit(e.target.value);
+                        if (errors.hourlyLimit) setErrors((prev) => ({ ...prev, hourlyLimit: "" }));
+                      }}
+                      className={`w-full h-10 px-3.5 rounded-lg border border-border-main bg-bg-surface text-sm text-text-main font-bold focus:outline-none focus:border-accent ${
+                        errors.hourlyLimit ? "border-err" : ""
+                      }`}
+                    />
+                    {errors.hourlyLimit && <p className="text-xs text-err mt-0.5">{errors.hourlyLimit}</p>}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
 
-          <Input
-            label="Emails per hour"
-            type="number"
-            min={1}
-            value={hourlyLimit}
-            onChange={(e) => setHourlyLimit(e.target.value)}
-            error={errors.hourlyLimit}
-          />
-        </div>
-
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2 border-t border-gray-100">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isSubmitting}>
-            Schedule
-          </Button>
-        </div>
-      </form>
-    </Modal>
+          {/* Footer Actions */}
+          <div className="border-t border-border-main px-6.5 py-4.5 bg-bg-secondary shrink-0 flex items-center justify-end gap-3 select-none">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="h-10 px-4.5 border border-border-main text-text-muted hover:bg-bg-elevated hover:text-text-main rounded-md text-xs font-bold transition-colors disabled:opacity-40 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              disabled={isSubmitting}
+              className="h-10 px-5.5 rounded-md text-xs"
+            >
+              {isSubmitting ? "Sending..." : "Schedule Email"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { emailQueue } from "../queues/email.queue";
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
 
@@ -10,12 +11,12 @@ const scheduleSchema = z.object({
     body: z.string().min(1),
     emails: z.array(z.string().email()).min(1),
     startTime: z.string().datetime(),
-    delayMs: z.number().int().min(0).default(2000),
+    delayMs: z.number().int().min(1000).default(2000),
     hourlyLimit: z.number().int().positive().default(50),
 });
 
 // POST /api/emails/schedule
-router.post("/schedule", async (req, res) => {
+router.post("/schedule", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const data = scheduleSchema.parse(req.body);
 
@@ -47,6 +48,9 @@ router.post("/schedule", async (req, res) => {
                     body: data.body,
                     scheduledAt,
                     idempotencyKey,
+                    delayMs: data.delayMs,
+                    hourlyLimit: data.hourlyLimit,
+                    userId: req.userId!,
                 },
             });
 
@@ -95,15 +99,17 @@ router.post("/schedule", async (req, res) => {
 });
 
 // GET /api/emails/scheduled
-router.get("/scheduled", async (_req, res) => {
+router.get("/scheduled", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const emails = await prisma.emailJob.findMany({
             where: {
                 status: "SCHEDULED",
+                userId: req.userId!,
             },
             orderBy: {
                 scheduledAt: "asc",
             },
+            take: 200,
         });
 
         return res.json({
@@ -121,17 +127,20 @@ router.get("/scheduled", async (_req, res) => {
 });
 
 // GET /api/emails/sent
-router.get("/sent", async (_req, res) => {
+router.get("/sent", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const emails = await prisma.emailJob.findMany({
             where: {
                 status: {
                     in: ["SENT", "FAILED"],
                 },
+                userId: req.userId!,
             },
-            orderBy: {
-                sentAt: "desc",
-            },
+            orderBy: [
+                { sentAt: "desc" },
+                { createdAt: "desc" },
+            ],
+            take: 200,
         });
 
         return res.json({

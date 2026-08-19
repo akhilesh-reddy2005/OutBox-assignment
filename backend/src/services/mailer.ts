@@ -25,13 +25,6 @@ export async function sendEmail(
 
     const previewUrl = nodemailer.getTestMessageUrl(info);
 
-    console.log("Email sent successfully");
-    console.log("Message ID:", info.messageId);
-
-    if (previewUrl) {
-        console.log("Preview URL:", previewUrl);
-    }
-
     return {
         messageId: info.messageId,
         previewUrl,

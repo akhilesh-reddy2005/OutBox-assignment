@@ -24,6 +24,7 @@ model EmailJob {
   subject        String
   body           String
   scheduledAt    DateTime
+  sendStartedAt  DateTime?
   sentAt         DateTime?
   status         EmailStatus @default(SCHEDULED)
   attempts       Int         @default(0)
@@ -31,6 +32,8 @@ model EmailJob {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   idempotencyKey String      @unique
+  delayMs        Int         @default(2000)
+  hourlyLimit    Int         @default(50)
   userId         String?
   user           User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -93,14 +93,32 @@ router.get(
 );
 
 const registerSchema = z.object({
-    name: z.string().min(1, "Name is required"),
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters long"),
+    name: z
+        .string()
+        .trim()
+        .min(1, "Name is required"),
+
+    email: z
+        .string()
+        .trim()
+        .toLowerCase()
+        .email("Invalid email address"),
+
+    password: z
+        .string()
+        .min(6, "Password must be at least 6 characters long"),
 });
 
 const loginSchema = z.object({
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(1, "Password is required"),
+    email: z
+        .string()
+        .trim()
+        .toLowerCase()
+        .email("Invalid email address"),
+
+    password: z
+        .string()
+        .min(1, "Password is required"),
 });
 
 /**

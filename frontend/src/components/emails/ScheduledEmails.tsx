@@ -6,12 +6,14 @@ interface ScheduledEmailsProps {
   emails: EmailJob[];
   isLoading: boolean;
   onMount: () => void;
+  onEmailClick: (email: EmailJob) => void;
 }
 
 export function ScheduledEmails({
   emails,
   isLoading,
   onMount,
+  onEmailClick,
 }: ScheduledEmailsProps) {
   useEffect(() => {
     onMount();
@@ -24,6 +26,7 @@ export function ScheduledEmails({
       timeColumn="scheduled"
       emptyTitle="No scheduled emails"
       emptyDescription="Schedule your first email to see it here."
+      onEmailClick={onEmailClick}
     />
   );
 }

@@ -1,7 +1,10 @@
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
-const JWT_SECRET =
-    process.env.JWT_SECRET || "development-secret";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable is required");
+}
 
 export function createToken(userId: string): string {
     return jwt.sign(
@@ -22,8 +25,6 @@ export function verifyToken(token: string): {
         userId: string;
     };
 }
-
-import crypto from "crypto";
 
 export function hashPassword(password: string): string {
     const salt = crypto.randomBytes(16).toString("hex");

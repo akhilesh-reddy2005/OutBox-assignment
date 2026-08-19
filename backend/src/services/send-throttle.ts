@@ -7,53 +7,64 @@ const redis = new IORedis({
     maxRetriesPerRequest: null,
 });
 
-const MIN_DELAY_MS = Number(
+/**
+ * Fallback minimum delay used only when no delayMs is available
+ * (e.g. legacy records created before this field was added).
+ */
+const FALLBACK_DELAY_MS = Number(
     process.env.MIN_DELAY_BETWEEN_EMAILS_MS || 2000
 );
 
+const SLOT_KEY = "email-send-next-slot";
+
 /**
- * Atomically reserves the next available global email-send slot.
+ * Waits until the globally reserved send slot is ready.
  *
- * Multiple workers can call this simultaneously.
- * Redis ensures each worker gets a different slot.
+ * With concurrency=1, this function is called sequentially.
+ * It reads the current "next allowed send time" from Redis and
+ * sleeps until that time is reached.
+ *
+ * Returns the timestamp at which the worker may begin sending.
  */
-const RESERVE_SLOT_SCRIPT = `
-local current = redis.call("GET", KEYS[1])
-local now = tonumber(ARGV[1])
-local delay = tonumber(ARGV[2])
-
-if not current then
-    local next = now + delay
-    redis.call("SET", KEYS[1], next)
-    return now
-end
-
-local nextAvailable = tonumber(current)
-
-if nextAvailable <= now then
-    local next = now + delay
-    redis.call("SET", KEYS[1], next)
-    return now
-end
-
-local reserved = nextAvailable
-local next = nextAvailable + delay
-
-redis.call("SET", KEYS[1], next)
-
-return reserved
-`;
-
-export async function reserveSendSlot(): Promise<number> {
+export async function waitForSendSlot(
+    delayMs: number = FALLBACK_DELAY_MS
+): Promise<number> {
+    const raw = await redis.get(SLOT_KEY);
+    const nextAllowed = raw ? Number(raw) : 0;
     const now = Date.now();
 
-    const result = await redis.eval(
-        RESERVE_SLOT_SCRIPT,
-        1,
-        "email-send-next-slot",
-        now,
-        MIN_DELAY_MS
-    );
+    if (nextAllowed > now) {
+        return nextAllowed; // caller will sleep until this
+    }
 
-    return Number(result);
+    return now;
+}
+
+/**
+ * Called immediately after SMTP completes (success OR failure).
+ *
+ * Records "now + delayMs" as the next allowed send time so the
+ * subsequent job waits the full delay from the end of THIS send.
+ *
+ * With concurrency=1 this is always called from one goroutine,
+ * so no atomic Lua script is required.
+ */
+export async function notifySendComplete(
+    delayMs: number = FALLBACK_DELAY_MS
+): Promise<void> {
+    const next = Date.now() + delayMs;
+    // TTL = delayMs * 2 so the key auto-expires if the worker stops
+    await redis.set(SLOT_KEY, next, "PX", delayMs * 2 + 5000);
+}
+
+/**
+ * Legacy export — kept so nothing breaks if imported elsewhere.
+ * Delegates to waitForSendSlot.
+ *
+ * @deprecated Use waitForSendSlot + notifySendComplete instead.
+ */
+export async function reserveSendSlot(
+    delayMs: number = FALLBACK_DELAY_MS
+): Promise<number> {
+    return waitForSendSlot(delayMs);
 }
