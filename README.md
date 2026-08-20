@@ -1,6 +1,6 @@
 # ReachInbox — Email Scheduler Assignment
 
-A full-stack email scheduling application built for the ReachInbox hiring assignment.
+A full-stack email scheduling application built for the Scheduling, Delaying, Rate Limit and etc.
 
 ---
 
